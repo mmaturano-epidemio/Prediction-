@@ -1,0 +1,148 @@
+---
+title: "Practical Machine Learning: Prediction of Weight Lifting Quality"
+author: "Manuel Maturano"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2  # Profundidad del índice
+    toc_float: true # (Solo HTML) Mantiene el índice visible
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(caret)
+library(data.table)
+library(corrplot)
+library(ggplot2)
+
+```
+
+# Executive Summary
+This project aims to **predict the quality of weight lifting exercises** using data from accelerometers on the belt, forearm, arm, and dumbbell of six participants, from [Velloso et. al.](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har). Using a Random Forest model with 5-fold cross-validation, an accuracy of over 99% was achieved on an independent testing set. This report details the data cleaning process, exploratory analysis, and model validation that were performed.
+
+# Data Preprocessing
+The initial dataset comprises 19,622 observations across 160 variables. However, a significant portion of these features are either administrative or exhibit a high degree of missingness.
+
+##Cleaning and Feature Selection
+Administrative variables (timestamps, window numbers, etc.) and columns where more than 10% of values were missing were removed. This reduced the feature space to 53 relevant variables.
+
+```{r eval=FALSE}
+# ---- Load libraries and training set ---- 
+library(caret)
+library(data.table)
+library(corrplot)
+library(ggplot2)
+
+# Load the dataset
+dt <- fread("[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)",
+            na.strings = c("NA", "#DIV/0!", ""))
+
+# Factorize outcome
+dt[, classe := as.factor(classe)]
+
+# Remove administrative and time-related variables
+dt <- dt[, .SD, .SDcols = !c("V1", "user_name", "raw_timestamp_part_1", 
+                             "raw_timestamp_part_2", "cvtd_timestamp", 
+                             "new_window", "num_window")]
+
+# Remove columns with more than 10% NAs
+dt <- dt[, .SD, .SDcols = !colMeans(is.na(dt))[colMeans(is.na(dt)) > .1] |> names()]
+```
+## Outlier Removal
+During exploratory analysis, a severe instrumental outlier was identified in the forearm sensors (likely a sensor malfunction). This observation was removed to ensure model stability.
+```{r eval=FALSE}
+outlier_idx <- which.max(dt$accel_forearm_y)
+dt <- dt[-outlier_idx]
+```
+
+After these transformations, the clean dataset was saved for reproducibility and faster loading in further steps:
+```{r eval=FALSE}
+# Save the pre-processed dataset for reproducibility and faster loading
+saveRDS(dt, "weight_lifting_clean.rds")
+```
+
+# Exploratory Data Analysis
+A correlation analysis revealed significant collinearity between sensors on the same device, which justifies the use of ensemble models like Random Forest that are robust against multicollinearity. Furthermore, PCA visualization suggests a highly non-linear separation between classes.
+```{r}
+# Import preprocessed dataset
+dt <- readRDS("weight_lifting_clean.rds") 
+
+# Perform principal component analysis
+pca_res <- prcomp(dt[, .SD, .SDcols = is.numeric], scale. = TRUE)
+pca_data <- data.table(pca_res$x[, 1:2], classe = dt$classe)
+
+ggplot(pca_data, aes(x = PC1, y = PC2, color = classe)) +
+  geom_point(alpha = 0.3) +
+  theme_minimal() +
+  labs(title = "PCA of Pre-processed Dataset")
+
+```
+# Model Training
+
+The data was split into a training set (75%) and a testing set (25%). A Random Forest algorithm was selected (using the ranger implementation) due to its ability to handle non-linear relationships and high-dimensional data without requiring feature scaling. To estimate performance and prevent overfitting, 5-fold Cross-Validation was employed.
+
+```{r eval=FALSE}
+set.seed(1234)
+inTrain <- createDataPartition(dt$classe, p = 0.75, list = FALSE)
+training <- dt[inTrain, ]
+testing  <- dt[-inTrain, ]
+
+control <- trainControl(method = "cv", number = 5)
+mod_rf <- train(classe ~ ., data = training, method = "ranger", 
+                trControl = control, importance = "impurity")
+
+# Save the model
+saveRDS(mod_rf, "rf_model_ranger.rds")
+```
+
+# Results and Out-of-Sample Error
+The model was validated using the hold-out testing set. The confusion matrix indicates exceptional performance.
+
+```{r include=FALSE}
+set.seed(1234)
+inTrain <- createDataPartition(dt$classe, p = 0.75, list = FALSE)
+training <- dt[inTrain, ]
+testing  <- dt[-inTrain, ]
+```
+
+```{r}
+mod_rf <- readRDS("rf_model_ranger.rds")
+
+predictions <- predict(mod_rf, testing)
+conf_matrix <- confusionMatrix(predictions, testing$classe)
+print(conf_matrix$overall[1:2])
+
+```
+
+The estimated Out-of-Sample Error is calculated as $1 - Accuracy$.Based on the testing set results:$$Error = 1 - 0.996 = 0.004 \text{ (0.4%)}$$
+
+# Variable Importance
+The most influential predictors for exercise classification are primarily sensors located on the belt and the dumbbell, suggesting these areas capture the most variance in movement quality.
+
+```{r}
+var_imp <- varImp(mod_rf, scale = FALSE)
+plot(var_imp, top = 15, main = "Top 15 Predictors")
+```
+
+# Final Predictions
+The model was applied to the 20 test cases for the final quiz, successfully identifying the exercise quality for all instances.
+
+```{r} 
+final_test <- fread("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",
+                    na.strings = c("NA", "#DIV/0!", ""))
+
+final_test_clean <- final_test[, .SD, .SDcols = names(training)[-which(names(training) == "classe")]]
+
+final_preds <- predict(mod_rf, final_test_clean)
+
+results <- data.frame(
+  problem_id = final_test$problem_id,
+  prediction = final_preds
+)
+
+print(results)
+
+```
