@@ -1,0 +1,38 @@
+---
+title: "REDME"
+output: html_document
+date: "2026-03-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Practical Machine Learning: Weight Lifting Exercise Classification
+
+This repository contains the final project for the **Practical Machine Learning** course from the Johns Hopkins University Data Science Specialization.
+
+## Project Overview
+The goal of this project is to predict the manner in which participants performed a unilateral dumbbell biceps curl. Using data from accelerometers on the belt, forearm, arm, and dumbbell, we classify the movement into five categories: one correct execution and four common mistakes.
+
+## Repository Contents
+* `index.html`: The compiled research report (viewable via GitHub Pages).
+* `Practical_Machine_Learning_Project.Rmd`: The source R Markdown file containing all code and analysis.
+* `weight_lifting_clean.rds`: (Optional) The pre-processed dataset for faster reproducibility.
+
+## Analysis and Results
+The analysis follows a rigorous data science workflow:
+1.  **Data Cleaning:** Handled missing values, removed irrelevant administrative features, and treated sensor outliers.
+2.  **Exploratory Analysis:** Used PCA and correlation matrices to understand the underlying structure of the biomechanical data.
+3.  **Model Selection:** Implemented a **Random Forest** model (using the `ranger` implementation) due to its robustness against non-linear patterns and multicollinearity.
+4.  **Validation:** Used **5-fold Cross-Validation** during training and a final hold-out validation set to estimate the out-of-sample error.
+5.  **Performance:** The model achieved an estimated **Accuracy of 99.6%**, with an expected out-of-sample error of approximately **0.4%**.
+
+## How to View the Report
+You can view the full interactive report online here:
+[**Click here to view the Analysis Report**](https://mmaturano-epidemio.github.io/Prediction-/)
+
+*(Note: Replace the link above with your actual GitHub Pages URL once deployed.)*
+
+## Data Source
+The data for this project comes from the **Groupware@LES Human Activity Recognition** project: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har)
