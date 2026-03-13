@@ -1,5 +1,5 @@
 ---
-title: "REDME"
+title: "README"
 output: html_document
 date: "2026-03-13"
 ---
@@ -31,8 +31,6 @@ The analysis follows a rigorous data science workflow:
 ## How to View the Report
 You can view the full interactive report online here:
 [**Click here to view the Analysis Report**](https://mmaturano-epidemio.github.io/Prediction-/)
-
-*(Note: Replace the link above with your actual GitHub Pages URL once deployed.)*
 
 ## Data Source
 The data for this project comes from the **Groupware@LES Human Activity Recognition** project: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har)
